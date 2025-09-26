@@ -15,14 +15,3 @@ class Listing(BaseModel):
     published_at = Column(DateTime, nullable=True)
     visibility = Column(db.Enum(VisibilityEnum), default=VisibilityEnum.private)
     media_urls = Column(JSON, nullable=True)
-
-    def to_dict(self):
-        return {
-            "id": str(self.id),
-            "property_id": str(self.property_id),
-            "published_at": self.published_at.isoformat() if self.published_at else None,
-            "visibility": self.visibility.name,
-            "media_urls": self.media_urls,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }

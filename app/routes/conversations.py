@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 from .. import db
 from ..models import Conversation, Deal, Property, User
+from ..schemas import conversation_schema, conversations_schema
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 conversations_bp = Blueprint('conversations', __name__, url_prefix='/conversations')
@@ -23,7 +24,6 @@ def create_conversation():
         prop = Property.query.get(property_id)
         if not prop:
             return jsonify({"msg": "Property not found"}), 404
-        # This could be a general inquiry, participants might be added differently
         participants = [str(prop.broker_id), str(get_jwt_identity())]
     else:
         return jsonify({"msg": "deal_id or property_id is required"}), 400
@@ -35,13 +35,11 @@ def create_conversation():
     )
     db.session.add(new_conversation)
     db.session.commit()
-    return jsonify({"msg": "Conversation created", "id": new_conversation.id}), 201
+    return jsonify(conversation_schema.dump(new_conversation)), 201
 
 @conversations_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_conversations():
     current_user_id = get_jwt_identity()
-    # A simple way to check if user is in participants list
-    # This might be slow on large datasets. A proper many-to-many relationship would be better.
     conversations = Conversation.query.filter(Conversation.participants.contains(current_user_id)).all()
-    return jsonify([c.to_dict() for c in conversations]), 200
+    return jsonify(conversations_schema.dump(conversations)), 200

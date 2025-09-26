@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 from .. import db
 from ..models import Listing, Property
+from ..schemas import listing_schema, listings_schema
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import datetime
 
@@ -17,7 +18,7 @@ def create_listing():
         return jsonify({"msg": "Property not found"}), 404
 
     current_user_id = get_jwt_identity()
-    if prop.broker_id != current_user_id:
+    if str(prop.broker_id) != current_user_id:
         return jsonify({"msg": "Only the property broker can create a listing"}), 403
 
     new_listing = Listing(
@@ -28,20 +29,19 @@ def create_listing():
     )
     db.session.add(new_listing)
     db.session.commit()
-    return jsonify({"msg": "Listing created", "id": new_listing.id}), 201
+    return jsonify(listing_schema.dump(new_listing)), 201
 
 @listings_bp.route('/', methods=['GET'])
 def get_listings():
     listings = Listing.query.filter_by(visibility='public').all()
-    return jsonify([l.to_dict() for l in listings]), 200
+    return jsonify(listings_schema.dump(listings)), 200
 
 @listings_bp.route('/<uuid:listing_id>', methods=['GET'])
 def get_listing(listing_id):
     listing = Listing.query.get(listing_id)
-    if not listing or listing.visibility != 'public':
-        # You might want to allow brokers to see private listings
+    if not listing or listing.visibility.name != 'public':
         return jsonify({"msg": "Listing not found or is private"}), 404
-    return jsonify(listing.to_dict()), 200
+    return jsonify(listing_schema.dump(listing)), 200
 
 @listings_bp.route('/<uuid:listing_id>', methods=['PUT'])
 @jwt_required()
@@ -52,24 +52,23 @@ def update_listing(listing_id):
 
     prop = Property.query.get(listing.property_id)
     current_user_id = get_jwt_identity()
-    if prop.broker_id != current_user_id:
+    if str(prop.broker_id) != current_user_id:
         return jsonify({"msg": "Unauthorized"}), 403
 
     data = request.get_json()
 
-    # Update visibility and published_at
     if 'visibility' in data and data['visibility'] != listing.visibility.name:
         listing.visibility = data['visibility']
         if data['visibility'] == 'public':
             listing.published_at = datetime.datetime.utcnow()
         else:
-            listing.published_at = None # Or keep the date, depending on requirements
+            listing.published_at = None
 
     if 'media_urls' in data:
         listing.media_urls = data['media_urls']
 
     db.session.commit()
-    return jsonify({"msg": "Listing updated"}), 200
+    return jsonify(listing_schema.dump(listing)), 200
 
 @listings_bp.route('/<uuid:listing_id>', methods=['DELETE'])
 @jwt_required()
@@ -80,7 +79,7 @@ def delete_listing(listing_id):
 
     prop = Property.query.get(listing.property_id)
     current_user_id = get_jwt_identity()
-    if prop.broker_id != current_user_id:
+    if str(prop.broker_id) != current_user_id:
         return jsonify({"msg": "Unauthorized"}), 403
 
     db.session.delete(listing)

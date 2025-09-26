@@ -29,25 +29,3 @@ class Property(BaseModel):
     status = Column(db.Enum(PropertyStatusEnum), nullable=False, default=PropertyStatusEnum.available)
     broker_id = Column(ForeignKey('users.id'), nullable=False)
     broker = relationship("User")
-
-    def to_dict(self):
-        return {
-            "id": str(self.id),
-            "title": self.title,
-            "description": self.description,
-            "type": self.property_type.name,
-            "location": {
-                "address": self.address,
-                "latitude": self.latitude,
-                "longitude": self.longitude
-            },
-            "price": self.price,
-            "size": {
-                "value": self.size,
-                "unit": self.size_unit
-            },
-            "status": self.status.name,
-            "broker_id": str(self.broker_id),
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }
